@@ -1,0 +1,10 @@
+[
+  {"id": "sample-1", "name": "Maple Street Pharmacy", "address": "120 Maple St", "phone": "+1-555-0101", "opening_hours": "Mo-Fr 08:00-20:00; Sa 09:00-17:00", "dlat": 0.0042, "dlon": 0.0031},
+  {"id": "sample-2", "name": "Riverside Community Drug", "address": "48 River Rd", "phone": "+1-555-0102", "opening_hours": "Mo-Sa 09:00-19:00", "dlat": -0.0065, "dlon": 0.0080},
+  {"id": "sample-3", "name": "Cornerstone Apothecary", "address": "7 Market Sq", "phone": "+1-555-0103", "opening_hours": "Mo-Fr 09:00-18:00", "dlat": 0.0110, "dlon": -0.0045},
+  {"id": "sample-4", "name": "Northgate 24h Pharmacy", "address": "2300 Northgate Ave", "phone": "+1-555-0104", "opening_hours": "24/7", "dlat": 0.0190, "dlon": 0.0120},
+  {"id": "sample-5", "name": "Elm and Fifth Health Mart", "address": "501 Elm St", "phone": "+1-555-0105", "opening_hours": "Mo-Fr 08:30-19:30; Sa-Su 10:00-16:00", "dlat": -0.0150, "dlon": -0.0110},
+  {"id": "sample-6", "name": "Lakeside Family Pharmacy", "address": "15 Shore Dr", "phone": "+1-555-0106", "opening_hours": "Mo-Fr 09:00-17:30", "dlat": 0.0025, "dlon": -0.0215},
+  {"id": "sample-7", "name": "Hillcrest Prescription Center", "address": "88 Hillcrest Blvd", "phone": "+1-555-0107", "opening_hours": "Mo-Sa 08:00-21:00; Su 10:00-18:00", "dlat": -0.0270, "dlon": 0.0195},
+  {"id": "sample-8", "name": "Old Mill Pharmacy", "address": "3 Mill Ln", "phone": "+1-555-0108", "opening_hours": "Mo-Fr 10:00-18:00", "dlat": 0.0310, "dlon": -0.0260}
+]

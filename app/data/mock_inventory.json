@@ -1,0 +1,5 @@
+{
+  "_comment": "Simulated stock. Status is a deterministic hash of (pharmacy id, drug) so evals are reproducible. Overrides model a known shortage so the 'nothing in stock' path can be demoed.",
+  "weights": {"in_stock": 50, "low": 20, "out_of_stock": 20, "unknown": 10},
+  "overrides": {"semaglutide": "out_of_stock"}
+}

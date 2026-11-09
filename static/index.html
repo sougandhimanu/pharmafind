@@ -1,0 +1,804 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PharmaFind</title>
+<meta name="description" content="Find nearby pharmacies that can fill your prescription, ranked by availability and distance.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231f7a54'/%3E%3Cpath d='M13 6h6v7h7v6h-7v7h-6v-7H6v-6h7z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --paper: #f6f3ea;
+    --paper-2: #efe9da;
+    --card: #fffdf8;
+    --ink: #13261f;
+    --ink-2: #4b5d55;
+    --ink-3: #7d8b84;
+    --rule: #ddd5c2;
+    --green: #1f7a54;
+    --green-ink: #0f4a33;
+    --green-wash: #e3f1e8;
+    --amber: #a86400;
+    --amber-wash: #fcefd6;
+    --slate: #4f5d6b;
+    --slate-wash: #e8ecf0;
+    --red: #b3372b;
+    --red-wash: #fae3df;
+    --hazard-a: #f5c542;
+    --hazard-b: #1d1d1b;
+    --shadow: 0 1px 0 rgba(19, 38, 31, .04), 0 8px 24px -12px rgba(19, 38, 31, .18);
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #101614; --paper-2: #151d1a; --card: #18211e; --ink: #e8efe9; --ink-2: #a9b8b0;
+      --ink-3: #7c8b84; --rule: #2a3632; --green: #4cc38a; --green-ink: #9be3bd; --green-wash: #163126;
+      --amber: #f0b44c; --amber-wash: #33270f; --slate: #a3b1bf; --slate-wash: #222a31;
+      --red: #f08070; --red-wash: #3a1d19; --shadow: 0 8px 24px -12px rgba(0, 0, 0, .6);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #101614; --paper-2: #151d1a; --card: #18211e; --ink: #e8efe9; --ink-2: #a9b8b0;
+    --ink-3: #7c8b84; --rule: #2a3632; --green: #4cc38a; --green-ink: #9be3bd; --green-wash: #163126;
+    --amber: #f0b44c; --amber-wash: #33270f; --slate: #a3b1bf; --slate-wash: #222a31;
+    --red: #f08070; --red-wash: #3a1d19; --shadow: 0 8px 24px -12px rgba(0, 0, 0, .6);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.5 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  a { color: var(--green); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+  /* ---- simulated banner ------------------------------------------------ */
+  .sim-banner {
+    position: sticky; top: 0; z-index: 10;
+    background: repeating-linear-gradient(-45deg, var(--hazard-a) 0 14px, var(--hazard-b) 14px 28px);
+    padding: 4px 0;
+  }
+  .sim-banner .inner {
+    background: var(--hazard-a); color: #1d1d1b;
+    display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;
+    padding: 6px 12px; font-size: 13.5px; text-align: center;
+  }
+  .sim-banner strong { letter-spacing: .08em; text-transform: uppercase; font-size: 12px; }
+  .sim-banner .sep { opacity: .5; }
+
+  /* ---- header ------------------------------------------------------------ */
+  header.site { padding: 28px 0 8px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand svg { flex: none; }
+  .brand-name { font-family: var(--serif); font-size: 26px; font-weight: 700; letter-spacing: -.01em; }
+  .brand-tag { color: var(--ink-2); font-size: 14px; margin-left: auto; }
+  .mode-pill {
+    font: 600 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase;
+    border: 1px solid var(--rule); border-radius: 999px; padding: 6px 9px; color: var(--ink-2);
+  }
+
+  /* ---- Rx pad ------------------------------------------------------------ */
+  .hero { padding: 18px 0 8px; }
+  .hero h1 {
+    font-family: var(--serif); font-weight: 600; font-size: clamp(28px, 4.6vw, 44px);
+    line-height: 1.1; letter-spacing: -.02em; margin: 0 0 10px; max-width: 18ch;
+  }
+  .hero p.lede { color: var(--ink-2); margin: 0 0 22px; max-width: 58ch; }
+  .rxpad {
+    position: relative; background: var(--card); border: 1px solid var(--rule);
+    border-radius: 14px; box-shadow: var(--shadow); padding: 22px 22px 18px 92px;
+    background-image: repeating-linear-gradient(transparent 0 35px, var(--rule) 35px 36px);
+    background-position: 0 58px; background-size: 100% 100%;
+  }
+  .rxpad::before {
+    content: ""; position: absolute; left: 70px; top: 0; bottom: 0; width: 1px;
+    background: color-mix(in srgb, var(--red) 45%, transparent);
+  }
+  .rx-glyph {
+    position: absolute; left: 18px; top: 12px; font-family: var(--serif); font-size: 48px;
+    line-height: 1; color: var(--green); font-style: italic;
+  }
+  .pad-head {
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    font: 12px/1.4 var(--mono); color: var(--ink-3); text-transform: uppercase; letter-spacing: .08em;
+    margin-bottom: 14px;
+  }
+  .fields { display: grid; grid-template-columns: 1fr; gap: 14px; background: var(--card); }
+  .field label {
+    display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-2); margin-bottom: 6px;
+  }
+  .field input, .field select {
+    width: 100%; background: var(--paper); border: 1.5px solid var(--rule); border-radius: 10px;
+    padding: 12px 14px; outline: none; transition: border-color .15s, box-shadow .15s;
+  }
+  .field input:focus, .field select:focus {
+    border-color: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 22%, transparent);
+  }
+  #q { font-family: var(--mono); font-size: 17px; }
+  .loc-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: end; }
+  .btn {
+    border: 1.5px solid var(--rule); background: var(--card); border-radius: 10px;
+    padding: 12px 14px; cursor: pointer; white-space: nowrap; display: inline-flex; gap: 8px; align-items: center;
+    text-decoration: none; color: var(--ink);
+  }
+  .btn:hover { border-color: var(--ink-3); }
+  .btn.primary { background: var(--green); border-color: var(--green); color: #fff; font-weight: 600; }
+  .btn.primary:hover { filter: brightness(1.06); }
+  :root[data-theme="dark"] .btn.primary { color: #08140f; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #08140f; } }
+  .btn:disabled { opacity: .6; cursor: progress; }
+  .submit-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-3); }
+  .chip {
+    border: 1px dashed var(--rule); background: transparent; border-radius: 999px; padding: 5px 11px;
+    font: 13px var(--mono); color: var(--ink-2); cursor: pointer;
+  }
+  .chip:hover { border-style: solid; border-color: var(--green); color: var(--green-ink); }
+  .chip .hint { font-family: var(--sans); color: var(--ink-3); margin-left: 4px; }
+
+  /* ---- results ----------------------------------------------------------- */
+  main { padding: 18px 0 40px; }
+  #results:empty { display: none; }
+  .status-line {
+    display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; border-radius: 12px;
+    background: var(--paper-2); border: 1px solid var(--rule); margin: 18px 0; color: var(--ink);
+  }
+  .status-line.ok { background: var(--green-wash); border-color: color-mix(in srgb, var(--green) 30%, transparent); }
+  .status-line.warn { background: var(--amber-wash); border-color: color-mix(in srgb, var(--amber) 35%, transparent); }
+  .status-line.stop { background: var(--red-wash); border-color: color-mix(in srgb, var(--red) 35%, transparent); }
+  .status-line svg { flex: none; margin-top: 2px; }
+
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  @media (min-width: 900px) {
+    .layout { grid-template-columns: minmax(0, 1fr) 340px; }
+    .side { position: sticky; top: 64px; align-self: start; }
+  }
+
+  /* drug label: styled like a dispensing label */
+  .rx-label {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 12px; box-shadow: var(--shadow);
+    overflow: hidden; margin-bottom: 18px;
+  }
+  .rx-label .strip {
+    background: var(--green); color: #fff; display: flex; justify-content: space-between; gap: 10px;
+    padding: 7px 14px; font: 600 11px/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase;
+  }
+  :root[data-theme="dark"] .rx-label .strip { color: #08140f; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .rx-label .strip { color: #08140f; } }
+  .rx-label .body { padding: 14px 16px 12px; border-top: 2px dashed var(--rule); margin-top: -1px; }
+  .rx-name { font: 700 22px/1.2 var(--mono); text-transform: uppercase; letter-spacing: .02em; margin: 0; }
+  .rx-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 8px; font: 13px var(--mono); color: var(--ink-2); }
+  .rx-meta b { color: var(--ink-3); font-weight: 500; margin-right: 6px; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 6px; font: 600 11.5px/1 var(--sans);
+    border-radius: 6px; padding: 5px 8px; margin-top: 10px; margin-right: 6px;
+  }
+  .tag.controlled { background: var(--red-wash); color: var(--red); }
+  .tag.corrected { background: var(--amber-wash); color: var(--amber); }
+
+  .list-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 6px 0 10px; flex-wrap: wrap; }
+  .list-head h2 { font-family: var(--serif); font-size: 22px; margin: 0; font-weight: 600; }
+  .list-head .src { font-size: 12.5px; color: var(--ink-3); }
+  ol.pharmacies { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .ph {
+    display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 12px;
+    background: var(--card); border: 1px solid var(--rule); border-left: 5px solid var(--st, var(--rule));
+    border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); transition: transform .15s, box-shadow .15s;
+  }
+  .ph.hl { transform: translateX(4px); box-shadow: 0 0 0 2px var(--st), var(--shadow); }
+  .ph .num {
+    width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--st-wash, var(--paper-2)); color: var(--st); font: 700 14px var(--mono);
+  }
+  .ph h3 { margin: 0; font-size: 17px; line-height: 1.3; }
+  .ph-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+  .ph .addr, .ph .hours { color: var(--ink-2); font-size: 14px; margin-top: 2px; }
+  .ph .hours { font-family: var(--mono); font-size: 12.5px; }
+  .ph .note { color: var(--ink-3); font-size: 12.5px; margin-top: 6px; }
+  .ph .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .ph .actions .btn { padding: 8px 12px; font-size: 14px; }
+  .dist { font: 600 13px var(--mono); color: var(--ink-2); white-space: nowrap; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 10px 4px 8px;
+    font: 600 12.5px/1.2 var(--sans); background: var(--st-wash); color: var(--st); white-space: nowrap;
+  }
+  .badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .badge small { font-weight: 500; opacity: .8; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  .st-in_stock { --st: var(--green); --st-wash: var(--green-wash); }
+  .st-low { --st: var(--amber); --st-wash: var(--amber-wash); }
+  .st-unknown { --st: var(--slate); --st-wash: var(--slate-wash); }
+  .st-out_of_stock { --st: var(--red); --st-wash: var(--red-wash); }
+
+  /* radar */
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 14px; box-shadow: var(--shadow); padding: 16px; }
+  .card h3 { margin: 0 0 4px; font-family: var(--serif); font-weight: 600; font-size: 18px; }
+  .card .sub { margin: 0 0 10px; color: var(--ink-3); font-size: 13px; }
+  #radar { width: 100%; height: auto; display: block; }
+  #radar .ring { fill: none; stroke: var(--rule); }
+  #radar .ring-label { fill: var(--ink-3); font: 10px var(--mono); }
+  #radar .axis { stroke: var(--rule); stroke-dasharray: 2 4; }
+  #radar .dot { stroke: var(--card); stroke-width: 2; cursor: pointer; transition: r .15s; }
+  #radar .dot-num { fill: #fff; font: 700 10px var(--mono); pointer-events: none; text-anchor: middle; dominant-baseline: central; }
+  #radar .you { fill: var(--ink); }
+  #radar .you-halo { fill: color-mix(in srgb, var(--ink) 12%, transparent); }
+  .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-top: 12px; font-size: 12.5px; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 50%; background: var(--st); display: inline-block; }
+
+  /* alternatives */
+  .alts { margin-top: 22px; border: 1.5px dashed color-mix(in srgb, var(--amber) 55%, var(--rule)); background: var(--card); border-radius: 14px; padding: 16px 18px; }
+  .alts h3 { margin: 0 0 4px; font-family: var(--serif); font-weight: 600; font-size: 19px; }
+  .alts p { margin: 0 0 10px; color: var(--ink-2); font-size: 14px; }
+  .alts ul { margin: 0 0 12px; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+  .alts li { font: 13px var(--mono); background: var(--paper-2); border: 1px solid var(--rule); border-radius: 8px; padding: 6px 10px; }
+  .alts .warn-line { display: flex; gap: 8px; align-items: center; font-weight: 600; color: var(--amber); font-size: 14.5px; }
+
+  /* refusal / not found / error */
+  .notice {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 14px; box-shadow: var(--shadow);
+    padding: 22px; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 14px; margin-top: 18px;
+  }
+  .notice h2 { margin: 0 0 6px; font-family: var(--serif); font-weight: 600; font-size: 21px; }
+  .notice p { margin: 0 0 8px; color: var(--ink-2); }
+  .notice .ico { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; }
+  .notice.refused .ico { background: var(--slate-wash); color: var(--slate); }
+  .notice.error .ico { background: var(--red-wash); color: var(--red); }
+  .notice.nf .ico { background: var(--amber-wash); color: var(--amber); }
+  .notice .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+
+  .loading { display: flex; gap: 12px; align-items: center; color: var(--ink-2); padding: 26px 4px; }
+  .capsule { width: 36px; height: 16px; border-radius: 8px; overflow: hidden; display: flex; animation: spin 1.2s ease-in-out infinite; }
+  .capsule::before, .capsule::after { content: ""; flex: 1; }
+  .capsule::before { background: var(--green); }
+  .capsule::after { background: var(--rule); }
+  @keyframes spin { 50% { transform: rotate(180deg); } 100% { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .capsule { animation: none; } .ph { transition: none; } }
+
+  /* history */
+  .history { margin-top: 26px; }
+  .history-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .history-head h2 { font-family: var(--serif); font-size: 20px; font-weight: 600; margin: 0; }
+  .history-head .sub { color: var(--ink-3); font-size: 12.5px; }
+  .history-head .btn { padding: 6px 10px; font-size: 13px; }
+  .slips { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 10px; scroll-snap-type: x proximity; }
+  .slip {
+    flex: 0 0 210px; scroll-snap-align: start; text-align: left; cursor: pointer;
+    background: var(--card); border: 1px solid var(--rule); border-top: 4px solid var(--st, var(--rule));
+    border-radius: 10px; padding: 10px 12px; box-shadow: var(--shadow); display: grid; gap: 3px;
+  }
+  .slip:hover { border-color: var(--ink-3); border-top-color: var(--st, var(--ink-3)); }
+  .slip:disabled { cursor: default; }
+  .slip .when { font: 11px var(--mono); color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; }
+  .slip .what { font: 700 14px var(--mono); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .slip .where { font-size: 12.5px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .slip .result { font-size: 12.5px; color: var(--st, var(--ink-2)); font-weight: 600; }
+  .history-empty { color: var(--ink-3); font-size: 14px; padding: 6px 0; }
+  .st-refused { --st: var(--slate); }
+  .st-error, .st-not_found { --st: var(--amber); }
+
+  footer.site { border-top: 1px solid var(--rule); padding: 22px 0 40px; color: var(--ink-3); font-size: 13px; }
+  footer.site p { margin: 0 0 6px; max-width: 75ch; }
+
+  @media (max-width: 640px) {
+    .rxpad { padding: 64px 16px 16px; background-position: 0 100px; }
+    .rxpad::before { display: none; }
+    .rx-glyph { top: 10px; left: 16px; font-size: 42px; }
+    .pad-head { margin-left: 52px; }
+    .loc-row { grid-template-columns: 1fr 1fr; }
+    .loc-row .field:first-child { grid-column: 1 / -1; }
+    .brand-tag { display: none; }
+    .notice { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sim-banner" role="status">
+  <div class="inner">
+    <strong>Simulated stock</strong>
+    <span>Availability shown here is demo data, not live inventory. Always call the pharmacy to confirm.</span>
+    <span class="sep" id="sample-sep" hidden>|</span>
+    <span id="sample-note" hidden>Pharmacies are fictional samples (offline mode).</span>
+  </div>
+</div>
+
+<div class="wrap">
+  <header class="site">
+    <div class="brand">
+      <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
+        <rect width="40" height="40" rx="11" fill="var(--green)"/>
+        <path d="M16.5 8h7v8.5H32v7h-8.5V32h-7v-8.5H8v-7h8.5z" fill="var(--card)"/>
+      </svg>
+      <span class="brand-name">PharmaFind</span>
+      <span class="brand-tag">Where can I fill this prescription?</span>
+      <span class="mode-pill" id="mode-pill">Live map</span>
+    </div>
+  </header>
+
+  <section class="hero" aria-labelledby="hero-title">
+    <h1 id="hero-title">Find a pharmacy near you that has your prescription.</h1>
+    <p class="lede">Type the medicine as it's written on your prescription. We'll find pharmacies nearby and rank them by availability, then by distance.</p>
+
+    <form class="rxpad" id="search-form" novalidate>
+      <span class="rx-glyph" aria-hidden="true">℞</span>
+      <div class="pad-head"><span>Prescription lookup</span><span id="today"></span></div>
+      <div class="fields">
+        <div class="field">
+          <label for="q">Medicine, strength and quantity</label>
+          <input id="q" name="q" autocomplete="off" spellcheck="false" maxlength="200"
+                 placeholder="amoxicillin 500 mg, 30 capsules" required>
+        </div>
+        <div class="loc-row">
+          <div class="field">
+            <label for="zip">ZIP code</label>
+            <input id="zip" name="zip" inputmode="numeric" autocomplete="postal-code" maxlength="10" placeholder="10001">
+          </div>
+          <div class="field">
+            <label for="radius">Within</label>
+            <select id="radius" name="radius">
+              <option value="2">2 km</option>
+              <option value="5" selected>5 km</option>
+              <option value="10">10 km</option>
+              <option value="25">25 km</option>
+            </select>
+          </div>
+          <button class="btn" type="button" id="geo-btn" title="Use my current location">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+            <span id="geo-label">Use my location</span>
+          </button>
+        </div>
+        <div class="submit-row">
+          <button class="btn primary" type="submit" id="submit-btn">Find pharmacies</button>
+          <div class="examples" id="examples">
+            <span>Try:</span>
+          </div>
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <main>
+    <div id="results" aria-live="polite"></div>
+
+    <section class="history" aria-labelledby="history-title">
+      <div class="history-head">
+        <div>
+          <h2 id="history-title">Recent searches</h2>
+          <span class="sub">Saved as the medicine we identified, never the text you typed.</span>
+        </div>
+        <button class="btn" type="button" id="clear-history">Clear history</button>
+      </div>
+      <div class="slips" id="history-list"></div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <p id="footer-disclaimer">PharmaFind does not give medical advice. Stock levels shown here are simulated for demonstration; call the pharmacy to confirm before you go. For questions about your medicine, ask your pharmacist or prescriber.</p>
+    <p>Drug names from the NLM RxNorm API. Pharmacy locations © OpenStreetMap contributors.</p>
+  </footer>
+</div>
+
+<template id="tpl-pharmacy">
+  <li class="ph">
+    <div class="num"></div>
+    <div>
+      <div class="ph-top">
+        <div><h3></h3><div class="addr"></div></div>
+        <span class="badge"></span>
+      </div>
+      <div class="hours"></div>
+      <div class="note"></div>
+      <div class="actions">
+        <span class="dist"></span>
+      </div>
+    </div>
+  </li>
+</template>
+
+<script>
+(() => {
+  "use strict";
+
+  const STATUS = {
+    in_stock: { label: "In stock", order: 0 },
+    low: { label: "Low stock", order: 1 },
+    unknown: { label: "Call to confirm", order: 2 },
+    out_of_stock: { label: "Out of stock", order: 3 },
+  };
+  const SOURCE = { mock: "Simulated", call_to_confirm: "Controlled" };
+  const EXAMPLES = [
+    ["amoxicillin 500mg, 30 capsules", ""],
+    ["metformin 850", ""],
+    ["semaglutide", "shortage"],
+    ["oxycodone 5mg", "controlled"],
+    ["how much should I take?", "advice"],
+  ];
+
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const el = (tag, cls, text) => {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text != null) node.textContent = text;
+    return node;
+  };
+  const svgEl = (tag, attrs = {}) => {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+    return node;
+  };
+  const icon = (paths, size = 22) => {
+    const s = svgEl("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none",
+      stroke: "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" });
+    for (const d of paths) s.appendChild(svgEl("path", { d }));
+    return s;
+  };
+  const ICONS = {
+    shield: ["M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z", "M9 12l2 2 4-4"],
+    hand: ["M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z", "M9 9l6 6M15 9l-6 6"],
+    alert: ["M12 3l10 18H2z", "M12 10v5", "M12 18h.01"],
+    search: ["M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z", "M21 21l-5-5"],
+    check: ["M5 12l5 5L20 7"],
+    phone: ["M5 4h4l2 5-3 2a11 11 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A17 17 0 0 1 3 6a2 2 0 0 1 2-2"],
+    route: ["M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z", "M18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4z", "M8 17h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7"],
+  };
+
+  const form = $("#search-form");
+  const results = $("#results");
+  const qInput = $("#q");
+  const zipInput = $("#zip");
+  let coords = null;
+
+  $("#today").textContent = new Date().toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+
+  for (const [q, hint] of EXAMPLES) {
+    const chip = el("button", "chip", q);
+    chip.type = "button";
+    if (hint) chip.appendChild(el("span", "hint", `(${hint})`));
+    chip.addEventListener("click", () => {
+      qInput.value = q;
+      if (!zipInput.value && !coords) zipInput.value = "10001";
+      run();
+    });
+    $("#examples").appendChild(chip);
+  }
+
+  fetch("/api/status").then(r => r.json()).then(s => {
+    $("#mode-pill").textContent = s.offline ? "Offline demo" : "Live map";
+    if (s.offline) { $("#sample-note").hidden = false; $("#sample-sep").hidden = false; }
+  }).catch(() => {});
+
+  $("#geo-btn").addEventListener("click", () => {
+    if (!navigator.geolocation) { showError("Your browser can't share location. Enter a ZIP code instead."); return; }
+    $("#geo-label").textContent = "Locating…";
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        coords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        zipInput.value = "";
+        zipInput.placeholder = "Using your location";
+        $("#geo-label").textContent = "Location set";
+      },
+      () => { $("#geo-label").textContent = "Use my location"; showError("Location permission was denied. Enter a ZIP code instead."); },
+      { timeout: 10000, maximumAge: 300000 },
+    );
+  });
+  zipInput.addEventListener("input", () => {
+    if (zipInput.value) { coords = null; zipInput.placeholder = "10001"; $("#geo-label").textContent = "Use my location"; }
+  });
+
+  form.addEventListener("submit", e => { e.preventDefault(); run(); });
+
+  async function run() {
+    const params = new URLSearchParams({ q: qInput.value.trim(), radius_km: $("#radius").value });
+    if (coords) { params.set("lat", coords.lat); params.set("lon", coords.lon); }
+    else if (zipInput.value.trim()) params.set("zip", zipInput.value.trim());
+
+    const btn = $("#submit-btn");
+    btn.disabled = true;
+    results.replaceChildren(loading());
+    try {
+      const resp = await fetch(`/api/search?${params}`);
+      const data = await resp.json();
+      if (!resp.ok) { showError(errorText(data)); return; }
+      render(data);
+    } catch {
+      showError("We couldn't reach PharmaFind. Check your connection and try again.");
+    } finally {
+      btn.disabled = false;
+      loadHistory();
+    }
+  }
+
+  // ---- search history ------------------------------------------------------
+  const OUTCOME_TEXT = {
+    refused: e => `Refused · ${e.refusal_category || "advice"} question`,
+    not_found: () => "Medicine not recognised",
+    no_pharmacies: () => "No pharmacies in range",
+  };
+
+  function historyStatus(e) {
+    if (e.outcome.startsWith("error:")) return "error";
+    if (e.outcome !== "ok") return e.outcome;
+    if (e.controlled) return "unknown";
+    return e.available_count ? "in_stock" : "out_of_stock";
+  }
+
+  function historyResult(e) {
+    if (e.outcome.startsWith("error:")) return `Error · ${e.outcome.slice(6).replace(/_/g, " ")}`;
+    if (OUTCOME_TEXT[e.outcome]) return OUTCOME_TEXT[e.outcome](e);
+    if (e.controlled) return `Controlled · ${e.pharmacy_count} to call`;
+    return `${e.available_count} of ${e.pharmacy_count} available`;
+  }
+
+  function historySlip(e) {
+    const slip = el("button", `slip st-${historyStatus(e)}`);
+    slip.type = "button";
+    const when = new Date(e.created_at);
+    slip.appendChild(el("span", "when", when.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })));
+    const what = [e.drug_name, e.strength].filter(Boolean).join(" ");
+    slip.appendChild(el("span", "what", what || "—"));
+    slip.appendChild(el("span", "where", e.location_label || "No location"));
+    slip.appendChild(el("span", "result", historyResult(e)));
+    if (e.drug_name) {
+      slip.title = `Search again for ${what}`;
+      slip.addEventListener("click", () => { qInput.value = what; run(); });
+    } else {
+      slip.disabled = true;
+    }
+    return slip;
+  }
+
+  async function loadHistory() {
+    const list = $("#history-list");
+    try {
+      const resp = await fetch("/api/history?limit=20");
+      const entries = await resp.json();
+      list.replaceChildren(...(entries.length
+        ? entries.map(historySlip)
+        : [el("p", "history-empty", "No searches yet. Your recent lookups will appear here.")]));
+      $("#clear-history").hidden = !entries.length;
+    } catch {
+      list.replaceChildren(el("p", "history-empty", "History is unavailable right now."));
+    }
+  }
+
+  $("#clear-history").addEventListener("click", async () => {
+    if (!confirm("Clear all saved search history?")) return;
+    await fetch("/api/history", { method: "DELETE" });
+    loadHistory();
+  });
+  loadHistory();
+
+  function errorText(data) {
+    if (data && typeof data.message === "string") return data.message;
+    if (data && Array.isArray(data.detail)) return "Please check your search: " + data.detail.map(d => d.msg).join("; ");
+    return "Something went wrong. Please try again.";
+  }
+
+  function loading() {
+    const box = el("div", "loading");
+    box.appendChild(el("div", "capsule"));
+    box.appendChild(el("span", null, "Checking nearby pharmacies…"));
+    return box;
+  }
+
+  function notice(kind, iconName, title, body, extra) {
+    const box = el("section", `notice ${kind}`);
+    const ico = el("div", "ico");
+    ico.appendChild(icon(ICONS[iconName]));
+    const content = el("div");
+    content.appendChild(el("h2", null, title));
+    content.appendChild(el("p", null, body));
+    if (extra) content.appendChild(extra);
+    box.append(ico, content);
+    return box;
+  }
+
+  function showError(msg) {
+    results.replaceChildren(notice("error", "alert", "We couldn't run that search", msg));
+  }
+
+  function render(data) {
+    if (data.status === "refused") {
+      results.replaceChildren(notice("refused", "hand", "That's a question for your pharmacist", data.message,
+        el("p", null, "PharmaFind can still help you find where to pick your prescription up. Enter the medicine name to search.")));
+      return;
+    }
+    if (data.status === "not_found") {
+      const chips = el("div", "chips");
+      for (const s of data.drug?.suggestions || []) {
+        const c = el("button", "chip", s);
+        c.type = "button";
+        c.addEventListener("click", () => { qInput.value = s; run(); });
+        chips.appendChild(c);
+      }
+      results.replaceChildren(notice("nf", "search", "We didn't recognise that medicine", data.message, chips));
+      return;
+    }
+
+    const frag = document.createDocumentFragment();
+    frag.appendChild(statusLine(data));
+    if (data.status === "no_pharmacies") {
+      frag.prepend(drugLabel(data.drug, data.location));
+      results.replaceChildren(frag);
+      return;
+    }
+
+    const layout = el("div", "layout");
+    const mainCol = el("div");
+    const side = el("aside", "side");
+    mainCol.appendChild(drugLabel(data.drug, data.location));
+
+    const head = el("div", "list-head");
+    head.appendChild(el("h2", null, `${data.results.length} pharmacies nearby`));
+    head.appendChild(el("span", "src", data.pharmacy_source === "sample"
+      ? "Fictional sample pharmacies · simulated stock"
+      : "Locations from OpenStreetMap · simulated stock"));
+    mainCol.appendChild(head);
+
+    const list = el("ol", "pharmacies");
+    for (const r of data.results) list.appendChild(pharmacyCard(r));
+    mainCol.appendChild(list);
+    if (data.alternatives) mainCol.appendChild(alternatives(data.alternatives));
+
+    side.appendChild(radarCard(data));
+    layout.append(mainCol, side);
+    frag.appendChild(layout);
+    results.replaceChildren(frag);
+    results.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function statusLine(data) {
+    const anyAvail = data.results.some(r => r.stock.status === "in_stock" || r.stock.status === "low");
+    const kind = data.drug?.controlled ? "stop" : anyAvail ? "ok" : "warn";
+    const box = el("div", `status-line ${kind}`);
+    box.appendChild(icon(ICONS[kind === "ok" ? "check" : kind === "stop" ? "shield" : "alert"], 20));
+    box.appendChild(el("span", null, data.message));
+    return box;
+  }
+
+  function drugLabel(drug, location) {
+    const card = el("article", "rx-label");
+    const strip = el("div", "strip");
+    strip.appendChild(el("span", null, "Rx · identified medicine"));
+    strip.appendChild(el("span", null, location ? location.label : ""));
+    const body = el("div", "body");
+    body.appendChild(el("p", "rx-name", drug.name));
+    const meta = el("div", "rx-meta");
+    const add = (k, v) => { if (v == null || v === "") return; const s = el("span"); s.appendChild(el("b", null, k)); s.append(String(v)); meta.appendChild(s); };
+    add("STRENGTH", drug.strength);
+    add("FORM", drug.form);
+    add("QTY", drug.quantity);
+    add("RXCUI", drug.rxcui);
+    body.appendChild(meta);
+    if (drug.corrected) body.appendChild(el("span", "tag corrected", `Read “${drug.query}” as ${drug.name}. Check this matches your label.`));
+    if (drug.controlled) body.appendChild(el("span", "tag controlled", "Controlled medicine · stock never shown online"));
+    card.append(strip, body);
+    return card;
+  }
+
+  function pharmacyCard(r) {
+    const node = $("#tpl-pharmacy").content.firstElementChild.cloneNode(true);
+    const p = r.pharmacy, s = r.stock;
+    node.classList.add(`st-${s.status}`);
+    node.dataset.id = p.id;
+    $(".num", node).textContent = r.rank;
+    $("h3", node).textContent = p.name;
+    $(".addr", node).textContent = p.address || "Address not listed";
+    $(".hours", node).textContent = p.opening_hours ? `Hours: ${p.opening_hours}` : "Hours not listed";
+    $(".note", node).textContent = s.note;
+    const badge = $(".badge", node);
+    badge.textContent = STATUS[s.status].label + " ";
+    badge.appendChild(el("small", null, SOURCE[s.source]));
+
+    const actions = $(".actions", node);
+    if (p.phone) {
+      const call = el("a", "btn");
+      call.href = `tel:${p.phone.replace(/[^\d+]/g, "")}`;
+      call.appendChild(icon(ICONS.phone, 16));
+      call.append(`Call ${p.phone}`);
+      actions.prepend(call);
+    }
+    const dir = el("a", "btn");
+    dir.href = `https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lon}#map=17/${p.lat}/${p.lon}`;
+    dir.target = "_blank";
+    dir.rel = "noopener";
+    dir.appendChild(icon(ICONS.route, 16));
+    dir.append("Map");
+    actions.insertBefore(dir, $(".dist", node));
+    $(".dist", node).textContent = `${p.distance_km.toFixed(1)} km away`;
+
+    node.addEventListener("mouseenter", () => highlight(p.id, true));
+    node.addEventListener("mouseleave", () => highlight(p.id, false));
+    return node;
+  }
+
+  function alternatives(alt) {
+    const box = el("section", "alts");
+    box.appendChild(el("h3", null, "Same medicine, other strengths or forms"));
+    box.appendChild(el("p", null, "Nothing nearby shows your prescription in stock. These are listed for reference only. This is not a recommendation."));
+    const ul = el("ul");
+    for (const item of alt.items) ul.appendChild(el("li", null, item));
+    box.appendChild(ul);
+    const warn = el("div", "warn-line");
+    warn.appendChild(icon(ICONS.alert, 18));
+    warn.append(alt.disclaimer);
+    box.appendChild(warn);
+    return box;
+  }
+
+  function radarCard(data) {
+    const card = el("section", "card");
+    card.appendChild(el("h3", null, "Around you"));
+    card.appendChild(el("p", "sub", data.location ? data.location.label : ""));
+    const size = 300, c = size / 2, pad = 22;
+    const svg = svgEl("svg", { id: "radar", viewBox: `0 0 ${size} ${size}`, role: "img",
+      "aria-label": "Map of nearby pharmacies around your location, colored by stock status" });
+    const maxKm = Math.max(0.5, ...data.results.map(r => r.pharmacy.distance_km)) * 1.08;
+    const scale = (c - pad) / maxKm;
+    svg.appendChild(svgEl("line", { class: "axis", x1: pad, y1: c, x2: size - pad, y2: c }));
+    svg.appendChild(svgEl("line", { class: "axis", x1: c, y1: pad, x2: c, y2: size - pad }));
+    for (const f of [1 / 3, 2 / 3, 1]) {
+      const rad = (c - pad) * f;
+      svg.appendChild(svgEl("circle", { class: "ring", cx: c, cy: c, r: rad }));
+      const t = svgEl("text", { class: "ring-label", x: c + 4, y: c - rad - 3 });
+      t.textContent = `${(maxKm * f).toFixed(1)} km`;
+      svg.appendChild(t);
+    }
+    svg.appendChild(svgEl("circle", { class: "you-halo", cx: c, cy: c, r: 14 }));
+    svg.appendChild(svgEl("circle", { class: "you", cx: c, cy: c, r: 5 }));
+
+    const { lat: lat0, lon: lon0 } = data.location;
+    const kx = 111.32 * Math.cos(lat0 * Math.PI / 180), ky = 110.57;
+    for (const r of [...data.results].reverse()) {
+      const p = r.pharmacy;
+      const x = c + (p.lon - lon0) * kx * scale, y = c - (p.lat - lat0) * ky * scale;
+      const g = svgEl("g", { class: `st-${r.stock.status}`, "data-id": p.id });
+      const dot = svgEl("circle", { class: "dot", cx: x, cy: y, r: 10, fill: "var(--st)" });
+      const title = svgEl("title");
+      title.textContent = `${r.rank}. ${p.name}: ${STATUS[r.stock.status].label} (${p.distance_km.toFixed(1)} km)`;
+      dot.appendChild(title);
+      const num = svgEl("text", { class: "dot-num", x, y });
+      num.textContent = r.rank;
+      g.append(dot, num);
+      g.addEventListener("mouseenter", () => highlight(p.id, true));
+      g.addEventListener("mouseleave", () => highlight(p.id, false));
+      g.addEventListener("click", () => {
+        const target = results.querySelector(`.ph[data-id="${CSS.escape(p.id)}"]`);
+        if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      svg.appendChild(g);
+    }
+    card.appendChild(svg);
+
+    const legend = el("div", "legend");
+    for (const [key, v] of Object.entries(STATUS)) {
+      const item = el("span", `st-${key}`);
+      item.appendChild(el("i"));
+      item.append(v.label);
+      legend.appendChild(item);
+    }
+    card.appendChild(legend);
+    return card;
+  }
+
+  function highlight(id, on) {
+    const card = results.querySelector(`.ph[data-id="${CSS.escape(id)}"]`);
+    if (card) card.classList.toggle("hl", on);
+    const dot = results.querySelector(`#radar g[data-id="${CSS.escape(id)}"] .dot`);
+    if (dot) dot.setAttribute("r", on ? 13 : 10);
+  }
+})();
+</script>
+</body>
+</html>
